@@ -46,7 +46,7 @@ export const errorHandler: ErrorHandler = (error, c) => {
 
   if (isDevelopment) {
     logger.error({ error });
-  } else if (error instanceof AppError) {
+  } else if (statusCode < 500) {
     logger.error({ error: error.message });
   } else {
     logger.error({ error });
