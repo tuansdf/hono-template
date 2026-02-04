@@ -7,10 +7,12 @@ import { loggerHandler } from "@/lib/middleware/logger-handler";
 import { notFoundHandler } from "@/lib/middleware/not-found-handler";
 import { routes } from "@/router";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { contextStorage } from "hono/context-storage";
 import { cors } from "hono/cors";
 import { requestId } from "hono/request-id";
 import { secureHeaders } from "hono/secure-headers";
+import { timeout } from "hono/timeout";
 
 const app = new Hono();
 
@@ -24,6 +26,8 @@ app.use(
   }),
 );
 app.use(secureHeaders());
+app.use(timeout(30000));
+app.use(bodyLimit({ maxSize: 5 * 1024 * 1024 }));
 app.use(contextStorage());
 app.use(requestId());
 app.use(loggerHandler);
