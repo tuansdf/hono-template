@@ -9,6 +9,7 @@ src/
 │   ├── config/             # Environment configuration (Zod-validated)
 │   ├── db/                 # Drizzle ORM setup + schemas
 │   │   └── schema/         # Database table definitions
+│   ├── http/               # HTTP layer utilities (responses, client, types)
 │   ├── middleware/         # Hono middleware (auth, error handling, logging)
 │   ├── types/              # Type augmentations (e.g., Hono context)
 │   ├── errors.ts           # Custom error classes
@@ -370,6 +371,44 @@ import { logger } from "@/lib/logger";
 logger.info({ userId: "123" }, "User created");
 logger.error({ error }, "Operation failed");
 ```
+
+### 8. HTTP Layer
+The `lib/http/` module provides standardized utilities for the HTTP layer:
+
+#### Response Helpers
+Use response helpers for consistent API responses:
+
+```typescript
+import { success, created, paginated, noContent, message } from "@/lib/http";
+
+// Single item response: { data: { ... } }
+return success(c, user);
+
+// Created response (201): { data: { ... } }
+return created(c, newPost);
+
+// Message only: { message: "..." }
+return message(c, "Email sent successfully");
+
+// No content (204)
+return noContent(c);
+```
+
+#### Pagination
+Use the pagination helpers for list endpoints:
+
+```typescript
+import { paginated, parsePagination } from "@/lib/http";
+
+postsRouter.get("/", async (c) => {
+  const { page, limit, offset } = parsePagination(c.req.query());
+  const { items, total } = await postsService.findPaginated(offset, limit);
+  return paginated(c, items, { page, limit, totalItems: total });
+});
+
+// Response: { data: [...], pagination: { page, limit, totalItems, totalPages, hasNextPage, hasPreviousPage } }
+```
+
 
 ## 📋 Code Style (Prettier)
 
