@@ -5,6 +5,7 @@ import { env } from "@/lib/config/env";
 import { errorHandler } from "@/lib/middleware/error-handler";
 import { loggerHandler } from "@/lib/middleware/logger-handler";
 import { notFoundHandler } from "@/lib/middleware/not-found-handler";
+import { routes } from "@/routes";
 import { Hono } from "hono";
 import { contextStorage } from "hono/context-storage";
 import { cors } from "hono/cors";
@@ -26,6 +27,8 @@ app.use(secureHeaders());
 app.use(contextStorage());
 app.use(requestId());
 app.use(loggerHandler);
+
+app.route("/api", routes);
 
 app.onError(errorHandler);
 app.notFound(notFoundHandler);
