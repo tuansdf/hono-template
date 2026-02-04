@@ -27,6 +27,17 @@ app.use(
   }),
 );
 app.use(secureHeaders());
+app.use(timeout(30000));
+app.use(bodyLimit({ maxSize: 5 * 1024 * 1024 }));
+app.use(contextStorage());
+app.use(requestId());
+app.use(loggerHandler);
+
+app.on(["GET", "POST"], "/api/auth/*", async (c) => {
+  const response = await auth.handler(c.req.raw);
+  return response;
+});
+
 app.use(
   rateLimiter({
     windowMs: 60 * 1000,
@@ -34,21 +45,10 @@ app.use(
     keyGenerator: (c) => c.req.header("x-forwarded-for") ?? "",
   }),
 );
-app.use(timeout(30000));
-app.use(bodyLimit({ maxSize: 5 * 1024 * 1024 }));
-app.use(contextStorage());
-app.use(requestId());
-app.use(loggerHandler);
-
 app.route("/api", routes);
 
 app.onError(errorHandler);
 app.notFound(notFoundHandler);
-
-app.on(["GET", "POST"], "/api/auth/*", async (c) => {
-  const response = await auth.handler(c.req.raw);
-  return response;
-});
 
 const port = env.PORT;
 console.log(`Server is running on port ${port}`);

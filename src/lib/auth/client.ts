@@ -12,6 +12,12 @@ export const auth = betterAuth({
     maxAge: 5 * 60,
     refreshCache: true,
   },
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 10,
+    storage: "memory",
+  },
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
