@@ -69,11 +69,7 @@ class PostsRepository {
   }
 
   async update(id: string, data: UpdatePostDto) {
-    const [updated] = await db
-      .update(post)
-      .set(data)
-      .where(eq(post.id, id))
-      .returning();
+    const [updated] = await db.update(post).set(data).where(eq(post.id, id)).returning();
     return updated;
   }
 
@@ -196,17 +192,12 @@ postsRouter.get("/:id", zValidator("param", postIdParamSchema), async (c) => {
 });
 
 // Protected routes
-postsRouter.post(
-  "/",
-  authenticate,
-  zValidator("json", createPostSchema),
-  async (c) => {
-    const data = c.req.valid("json");
-    const user = c.get("user");
-    const post = await postsService.create(data, user.id);
-    return c.json({ data: post }, 201);
-  },
-);
+postsRouter.post("/", authenticate, zValidator("json", createPostSchema), async (c) => {
+  const data = c.req.valid("json");
+  const user = c.get("user");
+  const post = await postsService.create(data, user.id);
+  return c.json({ data: post }, 201);
+});
 
 postsRouter.put(
   "/:id",
@@ -222,17 +213,12 @@ postsRouter.put(
   },
 );
 
-postsRouter.delete(
-  "/:id",
-  authenticate,
-  zValidator("param", postIdParamSchema),
-  async (c) => {
-    const { id } = c.req.valid("param");
-    const user = c.get("user");
-    await postsService.delete(id, user.id);
-    return c.json({ message: "Post deleted" });
-  },
-);
+postsRouter.delete("/:id", authenticate, zValidator("param", postIdParamSchema), async (c) => {
+  const { id } = c.req.valid("param");
+  const user = c.get("user");
+  await postsService.delete(id, user.id);
+  return c.json({ message: "Post deleted" });
+});
 ```
 
 ### 6. Mount the Router
@@ -252,35 +238,38 @@ routes.route("/posts", postsRouter);
 
 ### Layer Responsibilities Summary
 
-| Layer | Responsibility | Can Import |
-|-------|----------------|------------|
-| **Router** | HTTP handling, validation, responses | Service, Schema, Middleware |
-| **Service** | Business logic, orchestration, errors | Repository, Types |
-| **Repository** | Database CRUD operations | DB client, Schema |
-| **Schema** | Zod validation definitions | Zod only |
-| **Types** | DTOs and interfaces | Schema (for inference)
+| Layer          | Responsibility                        | Can Import                  |
+| -------------- | ------------------------------------- | --------------------------- |
+| **Router**     | HTTP handling, validation, responses  | Service, Schema, Middleware |
+| **Service**    | Business logic, orchestration, errors | Repository, Types           |
+| **Repository** | Database CRUD operations              | DB client, Schema           |
+| **Schema**     | Zod validation definitions            | Zod only                    |
+| **Types**      | DTOs and interfaces                   | Schema (for inference)      |
 
 ## 🔧 Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Runtime | **Bun** |
-| Framework | **Hono** |
-| Database | **PostgreSQL** via **Drizzle ORM** |
-| Validation | **Zod** (v4+) |
-| Auth | **Better Auth** with session-based strategy |
-| Logging | **Pino** (structured JSON) |
+| Layer      | Technology                                  |
+| ---------- | ------------------------------------------- |
+| Runtime    | **Bun**                                     |
+| Framework  | **Hono**                                    |
+| Database   | **PostgreSQL** via **Drizzle ORM**          |
+| Validation | **Zod** (v4+)                               |
+| Auth       | **Better Auth** with session-based strategy |
+| Logging    | **Pino** (structured JSON)                  |
 
 ## ✅ Key Conventions
 
 ### 1. Path Aliases
+
 Always use `@/` for imports:
+
 ```typescript
-import { env } from "@/lib/config/env";  // ✅
-import { env } from "../config/env";     // ❌
+import { env } from "@/lib/config/env"; // ✅
+import { env } from "../config/env"; // ❌
 ```
 
 ### 2. Environment Variables
+
 - All env vars are **Zod-validated** at startup in `lib/config/env.ts`
 - Use `env.VAR_NAME` everywhere, never `process.env.VAR_NAME` directly
 - Add new vars to the schema first, then use them
@@ -293,6 +282,7 @@ const envSchema = z.object({
 ```
 
 ### 3. Error Handling
+
 Throw typed errors from the `lib/errors.ts` hierarchy:
 
 ```typescript
@@ -302,17 +292,18 @@ throw new NotFoundError("User not found");
 throw new BadRequestError("Invalid input", "INVALID_INPUT");
 ```
 
-| Error Type | Status Code | Default Code |
-|------------|-------------|--------------|
-| `BadRequestError` | 400 | `BAD_REQUEST` |
-| `UnauthorizedError` | 401 | `AUTH_UNAUTHORIZED` |
-| `ForbiddenError` | 403 | `FORBIDDEN` |
-| `NotFoundError` | 404 | `NOT_FOUND` |
-| `ConflictError` | 409 | `CONFLICT` |
-| `ValidationError` | 422 | `VALIDATION_ERROR` |
-| `InternalError` | 500 | `INTERNAL_ERROR` |
+| Error Type          | Status Code | Default Code        |
+| ------------------- | ----------- | ------------------- |
+| `BadRequestError`   | 400         | `BAD_REQUEST`       |
+| `UnauthorizedError` | 401         | `AUTH_UNAUTHORIZED` |
+| `ForbiddenError`    | 403         | `FORBIDDEN`         |
+| `NotFoundError`     | 404         | `NOT_FOUND`         |
+| `ConflictError`     | 409         | `CONFLICT`          |
+| `ValidationError`   | 422         | `VALIDATION_ERROR`  |
+| `InternalError`     | 500         | `INTERNAL_ERROR`    |
 
 ### 4. Request Validation
+
 Use the custom `zValidator` wrapper (throws on failure):
 
 ```typescript
@@ -327,6 +318,7 @@ routes.post("/users", zValidator("json", schema), async (c) => {
 ```
 
 ### 5. Authentication
+
 Apply the `authenticate` middleware for protected routes:
 
 ```typescript
@@ -339,6 +331,7 @@ routes.get("/me", authenticate, async (c) => {
 ```
 
 ### 6. Database Schemas
+
 Define tables in `lib/db/schema/` and export from `index.ts`:
 
 ```typescript
@@ -346,7 +339,9 @@ Define tables in `lib/db/schema/` and export from `index.ts`:
 import { v7 as uuidv7 } from "uuid";
 
 export const user = pgTable("user", {
-  id: text("id").primaryKey().$defaultFn(() => uuidv7()),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   // ...
 });
 
@@ -355,6 +350,7 @@ export * from "./users";
 ```
 
 Drizzle patterns:
+
 - `text("id").primaryKey().$defaultFn(() => uuidv7())` for auto-generated UUID v7 IDs
 - `timestamp("created_at").defaultNow().notNull()` for timestamps
 - `.$onUpdate(() => new Date())` for auto-update timestamps
@@ -363,6 +359,7 @@ Drizzle patterns:
 > **Why UUID v7?** UUID v7 is time-ordered, making it ideal for database primary keys as it maintains insertion order for better index performance while remaining globally unique.
 
 ### 7. Logging
+
 Use the centralized logger with automatic request ID correlation:
 
 ```typescript
@@ -373,9 +370,11 @@ logger.error({ error }, "Operation failed");
 ```
 
 ### 8. HTTP Layer
+
 The `lib/http/` module provides standardized utilities for the HTTP layer:
 
 #### Response Helpers
+
 Use response helpers for consistent API responses:
 
 ```typescript
@@ -395,6 +394,7 @@ return noContent(c);
 ```
 
 #### Pagination
+
 Use the pagination helpers for list endpoints:
 
 ```typescript
@@ -409,32 +409,32 @@ postsRouter.get("/", async (c) => {
 // Response: { data: [...], pagination: { page, limit, totalItems, totalPages, hasNextPage, hasPreviousPage } }
 ```
 
-
 ## 📋 Code Style (Prettier)
 
-| Rule | Value |
-|------|-------|
-| Print Width | 100 |
-| Tabs | 2 spaces |
-| Semicolons | Yes |
-| Quotes | Double (`"`) |
-| Trailing Comma | All |
+| Rule           | Value        |
+| -------------- | ------------ |
+| Print Width    | 100          |
+| Tabs           | 2 spaces     |
+| Semicolons     | Yes          |
+| Quotes         | Double (`"`) |
+| Trailing Comma | All          |
 
 ## 🚀 Scripts
 
-| Command | Purpose |
-|---------|---------|
-| `bun run dev` | Start dev server with hot reload |
-| `bun run build` | Lint + typecheck + bundle |
-| `bun run lint` | Run ESLint |
-| `bun run typecheck` | TypeScript type checking |
-| `bun run db:generate` | Generate Drizzle migrations |
-| `bun run db:migrate` | Run migrations |
-| `bun run db:push` | Push schema to DB (dev only) |
+| Command               | Purpose                          |
+| --------------------- | -------------------------------- |
+| `bun run dev`         | Start dev server with hot reload |
+| `bun run build`       | Lint + typecheck + bundle        |
+| `bun run lint`        | Run ESLint                       |
+| `bun run typecheck`   | TypeScript type checking         |
+| `bun run db:generate` | Generate Drizzle migrations      |
+| `bun run db:migrate`  | Run migrations                   |
+| `bun run db:push`     | Push schema to DB (dev only)     |
 
 ## 🔒 Security Defaults
 
 Pre-configured with:
+
 - **CORS** with credentials and configurable origins
 - **Secure headers** via `hono/secure-headers`
 - **Request timeout** (30s)
