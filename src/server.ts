@@ -7,6 +7,7 @@ import { loggerHandler } from "@/lib/middleware/logger-handler";
 import { notFoundHandler } from "@/lib/middleware/not-found-handler";
 import { routes } from "@/router";
 import { Hono } from "hono";
+import { rateLimiter } from "hono-rate-limiter";
 import { bodyLimit } from "hono/body-limit";
 import { contextStorage } from "hono/context-storage";
 import { cors } from "hono/cors";
@@ -26,6 +27,13 @@ app.use(
   }),
 );
 app.use(secureHeaders());
+app.use(
+  rateLimiter({
+    windowMs: 60 * 1000,
+    limit: 100,
+    keyGenerator: (c) => c.req.header("x-forwarded-for") ?? "",
+  }),
+);
 app.use(timeout(30000));
 app.use(bodyLimit({ maxSize: 5 * 1024 * 1024 }));
 app.use(contextStorage());
