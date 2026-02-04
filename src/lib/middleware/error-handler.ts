@@ -1,53 +1,56 @@
+import { isDevelopment } from "@/lib/config/env";
+import { logger } from "@/lib/logger";
 import type { ErrorHandler } from "hono";
+import { HTTPException } from "hono/http-exception";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { ZodError } from "zod";
 import { AppError, ValidationError } from "../errors";
 
 interface ErrorResponse {
-  error: string;
   message: string;
-  code: string;
+  code?: string;
   details?: { field: string; message: string }[];
 }
 
 export const errorHandler: ErrorHandler = (error, c) => {
   const response: ErrorResponse = {
-    error: "Internal Server Error",
     message: "An unexpected error occurred",
     code: "INTERNAL_ERROR",
   };
 
-  let statusCode = 500;
+  let statusCode: ContentfulStatusCode = 500;
 
-  // Handle custom AppError instances
-  if (error instanceof AppError) {
+  if (error instanceof HTTPException) {
+    statusCode = error.status;
+    response.message = error.message;
+    response.code = undefined;
+  } else if (error instanceof AppError) {
     statusCode = error.statusCode;
-    response.error = error.name.replace("Error", " Error").trim();
     response.message = error.message;
     response.code = error.code;
 
     if (error instanceof ValidationError) {
       response.details = error.details;
     }
-  }
-  // Handle Zod validation errors
-  else if (error instanceof ZodError) {
+  } else if (error instanceof ZodError) {
     statusCode = 422;
-    response.error = "Validation Error";
     response.message = "Invalid request data";
     response.code = "VALIDATION_ERROR";
     response.details = error.issues.map((e) => ({
       field: e.path.join("."),
       message: e.message,
     }));
-  }
-  // Generic Error
-  else if (error instanceof Error) {
+  } else if (error instanceof Error) {
     response.message = error.message;
   }
 
-  // Log the error
-  const logLevel = statusCode >= 500 ? "error" : "warn";
-  console[logLevel](`[${statusCode}] ${response.message}`, error);
+  if (isDevelopment) {
+    logger.error({ error });
+  } else if (error instanceof AppError) {
+    logger.error({ error: error.message });
+  } else {
+    logger.error({ error });
+  }
 
-  return c.json(response, statusCode as 400);
+  return c.json(response, statusCode);
 };

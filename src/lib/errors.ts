@@ -5,11 +5,13 @@
  * will catch them and return consistent JSON responses.
  */
 
+import type { ContentfulStatusCode } from "hono/utils/http-status";
+
 export class AppError extends Error {
-  statusCode: number;
+  statusCode: ContentfulStatusCode;
   code: string;
 
-  constructor(message: string, statusCode: number, code: string) {
+  constructor(message: string, statusCode: ContentfulStatusCode, code: string) {
     super(message);
     this.statusCode = statusCode;
     this.code = code;
@@ -59,7 +61,7 @@ export class ValidationError extends AppError {
   constructor(
     details: ValidationDetail[],
     message = "Validation error",
-    code = "VALIDATION_ERROR"
+    code = "VALIDATION_ERROR",
   ) {
     super(message, 422, code);
     this.details = details;
