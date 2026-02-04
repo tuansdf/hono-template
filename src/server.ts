@@ -2,67 +2,51 @@ import "dotenv/config";
 
 import { auth } from "@/lib/auth/client";
 import { env } from "@/lib/config/env";
-import errorHandler from "@/lib/errors/error-handler";
-import { UnauthorizedError } from "@/lib/errors/errors";
-import fastifyCors from "@fastify/cors";
-import Fastify from "fastify";
+import { UnauthorizedError } from "@/lib/errors";
+import { errorHandler } from "@/lib/middleware/error-handler";
+import { loggerHandler } from "@/lib/middleware/logger-handler";
+import { notFoundHandler } from "@/lib/middleware/not-found-handler";
+import { serve } from "@hono/node-server";
+import { Hono } from "hono";
+import { contextStorage } from "hono/context-storage";
+import { cors } from "hono/cors";
+import { requestId } from "hono/request-id";
+import { secureHeaders } from "hono/secure-headers";
 
-const fastify = Fastify({ logger: true });
+const app = new Hono();
 
-// Register plugins
-fastify.register(fastifyCors, {
-  origin: env.CORS_ORIGINS,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  credentials: true,
-  maxAge: 86400,
-});
+app.use(
+  cors({
+    origin: env.CORS_ORIGINS,
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    credentials: true,
+    maxAge: 86400,
+  }),
+);
+app.use(secureHeaders());
+app.use(contextStorage());
+app.use(requestId());
+app.use(loggerHandler);
 
-fastify.register(errorHandler);
-
-// Helper to convert Fastify headers to Web Headers
-function buildWebHeaders(
-  headers: Record<string, string | string[] | undefined>
-): Headers {
-  const webHeaders = new Headers();
-  Object.entries(headers).forEach(([key, value]) => {
-    if (value) webHeaders.append(key, value.toString());
-  });
-  return webHeaders;
-}
+app.onError(errorHandler);
+app.notFound(notFoundHandler);
 
 // Better Auth universal handler
-fastify.route({
-  method: ["GET", "POST"],
-  url: "/api/auth/*",
-  async handler(request, reply) {
-    const url = new URL(request.url, `http://${request.headers.host}`);
-    const headers = buildWebHeaders(request.headers);
-
-    const req = new Request(url.toString(), {
-      method: request.method,
-      headers,
-      ...(request.body ? { body: JSON.stringify(request.body) } : {}),
-    });
-
-    const response = await auth.handler(req);
-
-    reply.status(response.status);
-    response.headers.forEach((value, key) => reply.header(key, value));
-    reply.send(response.body ? await response.text() : null);
-  },
+app.on(["GET", "POST"], "/api/auth/*", async (c) => {
+  const response = await auth.handler(c.req.raw);
+  return response;
 });
 
 // Protected test endpoint - returns current authenticated user
-fastify.get("/api/me", async (request, reply) => {
-  const headers = buildWebHeaders(request.headers);
-  const session = await auth.api.getSession({ headers });
+app.get("/api/me", async (c) => {
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
 
   if (!session) {
     throw new UnauthorizedError("No active session found");
   }
 
-  return reply.send({
+  return c.json({
     user: session.user,
     session: {
       id: session.session.id,
@@ -72,10 +56,6 @@ fastify.get("/api/me", async (request, reply) => {
 });
 
 // Initialize server
-fastify.listen({ port: env.PORT }, (err) => {
-  if (err) {
-    fastify.log.error(err);
-    process.exit(1);
-  }
+serve({ fetch: app.fetch, port: env.PORT }, () => {
   console.log(`Server running on port ${env.PORT}`);
 });
