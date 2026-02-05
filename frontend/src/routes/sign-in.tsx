@@ -2,9 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { signIn } from "@/lib/auth-client";
-import { createFileRoute, Link } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 
 interface SignInFormData {
@@ -12,11 +12,11 @@ interface SignInFormData {
   password: string;
 }
 
-export const Route = createFileRoute("/sign-in")({
-  component: SignInPage,
-});
-
 export default function SignInPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/";
+
   const {
     register,
     handleSubmit,
@@ -29,6 +29,9 @@ export default function SignInPage() {
     const { error } = await signIn.email(data);
     if (error) {
       toast.error(error.message ?? "Failed to sign in");
+    } else {
+      toast.success("Signed in successfully");
+      navigate(redirectTo, { replace: true });
     }
   };
 

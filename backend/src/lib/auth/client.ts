@@ -1,4 +1,4 @@
-import { env } from "@/lib/config/env";
+import { env, isDevelopment } from "@/lib/config/env";
 import { db } from "@/lib/db/client";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -17,6 +17,9 @@ export const auth = betterAuth({
     window: 60,
     max: 10,
     storage: "memory",
+  },
+  logger: {
+    disabled: !isDevelopment,
   },
   database: drizzleAdapter(db, {
     provider: "pg",

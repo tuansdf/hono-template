@@ -2,9 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { signUp } from "@/lib/auth-client";
-import { createFileRoute, Link } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
+import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 
 interface SignUpFormData {
@@ -13,11 +13,9 @@ interface SignUpFormData {
   password: string;
 }
 
-export const Route = createFileRoute("/sign-up")({
-  component: SignUpPage,
-});
-
 export default function SignUpPage() {
+  const navigate = useNavigate();
+
   const {
     register,
     handleSubmit,
@@ -30,6 +28,9 @@ export default function SignUpPage() {
     const { error } = await signUp.email(data);
     if (error) {
       toast.error(error.message ?? "Failed to create account");
+    } else {
+      toast.success("Account created successfully");
+      navigate("/", { replace: true });
     }
   };
 
@@ -90,7 +91,10 @@ export default function SignUpPage() {
 
           <div className="text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link to="/sign-in" className="text-primary font-medium hover:underline underline-offset-4">
+            <Link
+              to="/sign-in"
+              className="text-primary font-medium hover:underline underline-offset-4"
+            >
               Sign in
             </Link>
           </div>
